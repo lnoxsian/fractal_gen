@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FractalAI - Interactive Fractal Explorer</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Outfit:wght@300;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #0a0c10;
+            --panel-bg: rgba(18, 22, 31, 0.85);
+            --border: rgba(255, 255, 255, 0.1);
+            --accent: #38bdf8;
+            --accent-glow: rgba(56, 189, 248, 0.35);
+            --accent-purple: #a855f7;
+            --text-main: #f1f5f9;
+            --text-muted: #94a3b8;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-main);
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+        }
+
+        #viewport-container {
+            flex: 1;
+            position: relative;
+            background: #000;
+            cursor: grab;
+            overflow: hidden;
+        }
+
+        #viewport-container:active {
+            cursor: grabbing;
+        }
+
+        #fractal-img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            display: block;
+            pointer-events: none;
+            transition: opacity 0.15s ease;
+        }
+
+        #panel {
+            width: 380px;
+            background: var(--panel-bg);
+            backdrop-filter: blur(16px);
+            border-left: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            z-index: 10;
+            box-shadow: -10px 0 30px rgba(0, 0, 0, 0.5);
+            overflow-y: auto;
+        }
+
+        .header {
+            padding: 20px 24px 16px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .header h1 {
+            font-size: 1.4rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #38bdf8, #a855f7);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -0.5px;
+        }
+
+        .header .badge {
+            font-size: 0.75rem;
+            padding: 3px 8px;
+            border-radius: 12px;
+            background: rgba(56, 189, 248, 0.15);
+            color: var(--accent);
+            border: 1px solid rgba(56, 189, 248, 0.3);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .section {
+            padding: 18px 24px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .section-title {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 1.2px;
+            color: var(--text-muted);
+            margin-bottom: 12px;
+            font-weight: 600;
+        }
+
+        .field {
+            margin-bottom: 14px;
+        }
+
+        .field label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-bottom: 6px;
+        }
+
+        .field label span.val {
+            color: var(--text-main);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.8rem;
+        }
+
+        select, input[type="number"], input[type="text"] {
+            width: 100%;
+            background: rgba(10, 14, 22, 0.8);
+            border: 1px solid var(--border);
+            color: var(--text-main);
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            outline: none;
+            transition: all 0.2s ease;
+            font-family: inherit;
+        }
+
+        select:focus, input:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 2px var(--accent-glow);
+        }
+
+        input[type="range"] {
+            width: 100%;
+            accent-color: var(--accent);
+            cursor: pointer;
+        }
+
+        .formula-card {
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 8px;
+            padding: 12px;
+            margin-top: 10px;
+        }
+
+        .formula-card .math {
+            font-family: 'JetBrains Mono', monospace;
+            color: #38bdf8;
+            font-size: 0.82rem;
+            margin-bottom: 6px;
+            word-break: break-all;
+        }
+
+        .formula-card .desc {
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            line-height: 1.4;
+        }
+
+        .btn-surprise {
+            background: linear-gradient(135deg, #38bdf8, #a855f7);
+            color: #fff;
+            border: none;
+            width: 100%;
+            padding: 14px;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            box-shadow: 0 4px 20px rgba(168, 85, 247, 0.35);
+            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .btn-surprise:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 26px rgba(168, 85, 247, 0.5);
+        }
+
+        .btn-surprise:active {
+            transform: translateY(0);
+        }
+
+        .btn-surprise.loading {
+            opacity: 0.7;
+            pointer-events: none;
+        }
+
+        .btn-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border);
+            color: var(--text-main);
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        #status-bar {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(18, 22, 31, 0.85);
+            backdrop-filter: blur(8px);
+            padding: 8px 16px;
+            border-radius: 20px;
+            border: 1px solid var(--border);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            pointer-events: none;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .spinner {
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top-color: #fff;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            display: none;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div id="viewport-container">
+        <img id="fractal-img" alt="Fractal rendering">
+        <div id="status-bar">
+            <span id="coord-info">X: 0.000000 | Y: 0.000000 | Zoom: 1.00x</span>
+            <span id="render-time">Ready</span>
+        </div>
+    </div>
+
+    <div id="panel">
+        <div class="header">
+            <div>
+                <h1>FractalAI</h1>
+                <div style="font-size: 0.78rem; color: var(--text-muted);">114 Fractals • 48 Palettes</div>
+            </div>
+            <span class="badge">Rust Core</span>
+        </div>
+
+        <div class="section">
+            <button class="btn-surprise" id="btn-surprise">
+                <span class="spinner" id="surprise-spinner"></span>
+                <span>✨ Surprise Me</span>
+            </button>
+            <div class="btn-group">
+                <button class="btn-secondary" id="btn-favorite">❤️ Favorite</button>
+                <button class="btn-secondary" id="btn-export">💾 Export PNG</button>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">Fractal System</div>
+            <div class="field">
+                <label for="select-fractal">Fractal Type</label>
+                <select id="select-fractal"></select>
+            </div>
+            <div class="formula-card">
+                <div class="math" id="formula-math">z_{n+1} = z_n^2 + c</div>
+                <div class="desc" id="formula-desc">Classic Mandelbrot set</div>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">Color Palette</div>
+            <div class="field">
+                <label for="select-color">Color Scheme (48)</label>
+                <select id="select-color"></select>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">Coordinates & View</div>
+            <div class="field">
+                <label>Zoom <span class="val" id="lbl-zoom">1.00</span></label>
+                <input type="range" id="rng-zoom" min="0.1" max="50" step="0.1" value="1.0">
+            </div>
+            <div class="field">
+                <label>Iterations <span class="val" id="lbl-iter">125</span></label>
+                <input type="range" id="rng-iter" min="20" max="500" step="5" value="125">
+            </div>
+            <div class="btn-group">
+                <button class="btn-secondary" id="btn-reset">↺ Reset View</button>
+                <button class="btn-secondary" id="btn-center">⌖ Center</button>
+            </div>
+        </div>
+
+        <div class="section" id="sec-julia" style="display: none;">
+            <div class="section-title">Julia Constants</div>
+            <div class="field">
+                <label>Real Constant (CX) <span class="val" id="lbl-cx">-0.7269</span></label>
+                <input type="range" id="rng-cx" min="-1.5" max="1.5" step="0.005" value="-0.7269">
+            </div>
+            <div class="field">
+                <label>Imaginary Constant (CY) <span class="val" id="lbl-cy">0.1889</span></label>
+                <input type="range" id="rng-cy" min="-1.5" max="1.5" step="0.005" value="0.1889">
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const state = {
+            fractal: 'mandelbrot',
+            color: 'classic',
+            zoom: 1.0,
+            offsetX: -0.5,
+            offsetY: 0.0,
+            iterations: 125,
+            juliaCX: -0.7269,
+            juliaCY: 0.1889,
+            fractalsList: [],
+            colorsList: [],
+            isDragging: false,
+            startX: 0,
+            startY: 0,
+            startOffsetX: 0,
+            startOffsetY: 0,
+            renderTimeout: null,
+        };
+
+        const img = document.getElementById('fractal-img');
+        const container = document.getElementById('viewport-container');
+        const selectFractal = document.getElementById('select-fractal');
+        const selectColor = document.getElementById('select-color');
+        const formulaMath = document.getElementById('formula-math');
+        const formulaDesc = document.getElementById('formula-desc');
+        const secJulia = document.getElementById('sec-julia');
+        const rngZoom = document.getElementById('rng-zoom');
+        const lblZoom = document.getElementById('lbl-zoom');
+        const rngIter = document.getElementById('rng-iter');
+        const lblIter = document.getElementById('lbl-iter');
+        const rngCX = document.getElementById('rng-cx');
+        const lblCX = document.getElementById('lbl-cx');
+        const rngCY = document.getElementById('rng-cy');
+        const lblCY = document.getElementById('lbl-cy');
+        const coordInfo = document.getElementById('coord-info');
+        const renderTime = document.getElementById('render-time');
+        const btnSurprise = document.getElementById('btn-surprise');
+        const spinner = document.getElementById('surprise-spinner');
+
+        async function init() {
+            // Load fractals
+            const resF = await fetch('/api/fractals');
+            state.fractalsList = await resF.json();
+
+            // Group fractals by family
+            const families = {};
+            state.fractalsList.forEach(f => {
+                if (!families[f.family]) families[f.family] = [];
+                families[f.family].push(f);
+            });
+
+            for (const [family, list] of Object.entries(families)) {
+                const optgroup = document.createElement('optgroup');
+                optgroup.label = family.replace('-', ' ').toUpperCase();
+                list.forEach(f => {
+                    const opt = document.createElement('option');
+                    opt.value = f.id;
+                    opt.textContent = f.name;
+                    optgroup.appendChild(opt);
+                });
+                selectFractal.appendChild(optgroup);
+            }
+
+            // Load colors
+            const resC = await fetch('/api/colors');
+            state.colorsList = await resC.json();
+            state.colorsList.forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c.id;
+                opt.textContent = `${c.index}. ${c.id} (${c.description})`;
+                selectColor.appendChild(opt);
+            });
+
+            selectFractal.value = state.fractal;
+            selectColor.value = state.color;
+            updateFractalInfo();
+            render();
+        }
+
+        function updateFractalInfo() {
+            const f = state.fractalsList.find(x => x.id === state.fractal);
+            if (f) {
+                formulaMath.textContent = f.formula;
+                formulaDesc.textContent = f.description;
+                secJulia.style.display = f.family === 'julia-family' ? 'block' : 'none';
+            }
+        }
+
+        function render() {
+            clearTimeout(state.renderTimeout);
+            state.renderTimeout = setTimeout(() => {
+                const rect = container.getBoundingClientRect();
+                const w = Math.floor(rect.width);
+                const h = Math.floor(rect.height);
+                const t0 = performance.now();
+
+                const params = new URLSearchParams({
+                    fractal: state.fractal,
+                    color: state.color,
+                    zoom: state.zoom,
+                    offset_x: state.offsetX,
+                    offset_y: state.offsetY,
+                    iterations: state.iterations,
+                    julia_cx: state.juliaCX,
+                    julia_cy: state.juliaCY,
+                    width: w,
+                    height: h,
+                });
+
+                img.src = `/api/render?${params.toString()}`;
+                img.onload = () => {
+                    const elapsed = Math.round(performance.now() - t0);
+                    renderTime.textContent = `${elapsed} ms`;
+                    coordInfo.textContent = `X: ${state.offsetX.toFixed(5)} | Y: ${state.offsetY.toFixed(5)} | Zoom: ${state.zoom.toFixed(2)}x`;
+                };
+            }, 50);
+        }
+
+        // Mouse Drag Panning
+        container.addEventListener('mousedown', e => {
+            state.isDragging = true;
+            state.startX = e.clientX;
+            state.startY = e.clientY;
+            state.startOffsetX = state.offsetX;
+            state.startOffsetY = state.offsetY;
+        });
+
+        window.addEventListener('mousemove', e => {
+            if (!state.isDragging) return;
+            const dx = e.clientX - state.startX;
+            const dy = e.clientY - state.startY;
+            const h = container.clientHeight;
+            const scale = 4.0 / state.zoom;
+            state.offsetX = state.startOffsetX - (dx / h) * scale;
+            state.offsetY = state.startOffsetY + (dy / h) * scale;
+            render();
+        });
+
+        window.addEventListener('mouseup', () => {
+            state.isDragging = false;
+        });
+
+        // Mouse Wheel Zooming
+        container.addEventListener('wheel', e => {
+            e.preventDefault();
+            const factor = e.deltaY < 0 ? 1.25 : 0.8;
+            state.zoom *= factor;
+            rngZoom.value = state.zoom;
+            lblZoom.textContent = state.zoom.toFixed(2);
+            render();
+        });
+
+        // UI Controls
+        selectFractal.addEventListener('change', e => {
+            state.fractal = e.target.value;
+            const f = state.fractalsList.find(x => x.id === state.fractal);
+            if (f && f.bounds) {
+                state.offsetX = f.bounds.default_offset_x;
+                state.offsetY = f.bounds.default_offset_y;
+                state.zoom = f.bounds.default_zoom;
+                rngZoom.value = state.zoom;
+                lblZoom.textContent = state.zoom.toFixed(2);
+            }
+            updateFractalInfo();
+            render();
+        });
+
+        selectColor.addEventListener('change', e => {
+            state.color = e.target.value;
+            render();
+        });
+
+        rngZoom.addEventListener('input', e => {
+            state.zoom = parseFloat(e.target.value);
+            lblZoom.textContent = state.zoom.toFixed(2);
+            render();
+        });
+
+        rngIter.addEventListener('input', e => {
+            state.iterations = parseInt(e.target.value);
+            lblIter.textContent = state.iterations;
+            render();
+        });
+
+        rngCX.addEventListener('input', e => {
+            state.juliaCX = parseFloat(e.target.value);
+            lblCX.textContent = state.juliaCX.toFixed(4);
+            render();
+        });
+
+        rngCY.addEventListener('input', e => {
+            state.juliaCY = parseFloat(e.target.value);
+            lblCY.textContent = state.juliaCY.toFixed(4);
+            render();
+        });
+
+        document.getElementById('btn-center').addEventListener('click', () => {
+            state.offsetX = 0.0;
+            state.offsetY = 0.0;
+            render();
+        });
+
+        document.getElementById('btn-reset').addEventListener('click', () => {
+            const f = state.fractalsList.find(x => x.id === state.fractal);
+            if (f && f.bounds) {
+                state.offsetX = f.bounds.default_offset_x;
+                state.offsetY = f.bounds.default_offset_y;
+                state.zoom = f.bounds.default_zoom;
+            } else {
+                state.offsetX = -0.5;
+                state.offsetY = 0.0;
+                state.zoom = 1.0;
+            }
+            rngZoom.value = state.zoom;
+            lblZoom.textContent = state.zoom.toFixed(2);
+            render();
+        });
+
+        // Surprise Me Button
+        btnSurprise.addEventListener('click', async () => {
+            btnSurprise.classList.add('loading');
+            spinner.style.display = 'inline-block';
+            try {
+                const res = await fetch(`/api/surprise-me?fractal=${state.fractal}`);
+                const data = await res.json();
+                if (data.status === 'success') {
+                    const c = data.config;
+                    state.zoom = c.zoom;
+                    state.offsetX = c.offsetX;
+                    state.offsetY = c.offsetY;
+                    state.color = c.color;
+                    state.iterations = c.iterations;
+                    if (c.juliaCX !== undefined) state.juliaCX = c.juliaCX;
+                    if (c.juliaCY !== undefined) state.juliaCY = c.juliaCY;
+
+                    selectColor.value = state.color;
+                    rngZoom.value = state.zoom;
+                    lblZoom.textContent = state.zoom.toFixed(2);
+                    rngIter.value = state.iterations;
+                    lblIter.textContent = state.iterations;
+                    render();
+                }
+            } catch (err) {
+                console.error(err);
+            } finally {
+                btnSurprise.classList.remove('loading');
+                spinner.style.display = 'none';
+            }
+        });
+
+        // Favorite Button
+        document.getElementById('btn-favorite').addEventListener('click', async () => {
+            const payload = {
+                fractal_type: state.fractal,
+                zoom: state.zoom,
+                offset_x: state.offsetX,
+                offset_y: state.offsetY,
+                iterations: state.iterations,
+                color_scheme: state.color,
+                x_scale: 1.0,
+                y_scale: 1.0,
+                julia_cx: state.juliaCX,
+                julia_cy: state.juliaCY,
+            };
+            await fetch('/api/favorites', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            });
+            alert('Saved to favorites!');
+        });
+
+        // Export PNG
+        document.getElementById('btn-export').addEventListener('click', () => {
+            const params = new URLSearchParams({
+                fractal: state.fractal,
+                color: state.color,
+                zoom: state.zoom,
+                offset_x: state.offsetX,
+                offset_y: state.offsetY,
+                iterations: state.iterations,
+                julia_cx: state.juliaCX,
+                julia_cy: state.juliaCY,
+                width: 1920,
+                height: 1080,
+            });
+            window.open(`/api/render?${params.toString()}`, '_blank');
+        });
+
+        window.addEventListener('resize', render);
+        init();
+    </script>
+</body>
+</html>
