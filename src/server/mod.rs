@@ -76,12 +76,19 @@ pub fn start_server(host: &str, port: u16) -> Result<(), Box<dyn std::error::Err
                 let width = parse_query_param(query, "width").unwrap_or(800.0) as u32;
                 let height = parse_query_param(query, "height").unwrap_or(600.0) as u32;
 
-                let buffer = renderer.render(&config, width.min(2560), height.min(2560));
+                let buffer = renderer.render(&config, width.min(8192), height.min(8192));
                 match buffer.to_png_bytes() {
                     Ok(png_bytes) => {
                         let header = Header::from_bytes(&b"Content-Type"[..], &b"image/png"[..]).unwrap();
                         let mut resp = Response::from_data(png_bytes);
                         resp.add_header(header);
+                        if parse_query_str(query, "download").is_some() {
+                            let filename = format!("{}_{}x{}.png", config.fractal_type, width, height);
+                            let cd_val = format!("attachment; filename=\"{filename}\"");
+                            if let Ok(cd_header) = Header::from_bytes(&b"Content-Disposition"[..], cd_val.as_bytes()) {
+                                resp.add_header(cd_header);
+                            }
+                        }
                         let _ = request.respond(resp);
                     }
                     Err(e) => {
