@@ -145,3 +145,31 @@ fn test_surprise_me_discovery() {
     assert!(candidate.score >= 0.3);
     assert_eq!(candidate.config.fractal_type, "mandelbrot");
 }
+
+#[test]
+fn test_double_double_infinite_zoom() {
+    use fractal_gen::core::double_double::DoubleDouble;
+
+    // Verify 106-bit addition accuracy
+    let a = DoubleDouble::from_f64(1.0);
+    let eps = DoubleDouble::from_f64(1e-25);
+    let sum = a + eps;
+    assert_eq!(sum.lo, 1e-25, "DoubleDouble must preserve 1e-25 precision in low part");
+
+    // Test deep Mandelbrot render at 10^20x zoom
+    let renderer = FractalRenderer::new();
+    let config = FractalConfig {
+        fractal_type: "mandelbrot".to_string(),
+        zoom: 1e20,
+        offset_x: -0.7436438870371587,
+        offset_y: 0.1318259042053119,
+        offset_x_str: Some("-0.743643887037158704752191506114774".to_string()),
+        offset_y_str: Some("0.131825904205311970493132056385139".to_string()),
+        iterations: 200,
+        ..Default::default()
+    };
+
+    let buffer = renderer.render(&config, 64, 64);
+    assert_eq!(buffer.width, 64);
+    assert_eq!(buffer.height, 64);
+}

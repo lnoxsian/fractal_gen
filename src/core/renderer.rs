@@ -80,21 +80,53 @@ impl FractalRenderer {
             FractalRenderMode::PerPixel => {
                 let total_pixels = (width * height) as usize;
                 let mut pixels = vec![Rgba::BLACK; total_pixels];
+                let use_dd = config.zoom > 1e13 || config.offset_x_str.is_some() || config.offset_y_str.is_some();
 
-                pixels
-                    .par_chunks_mut(width as usize)
-                    .enumerate()
-                    .for_each(|(y_idx, row)| {
-                        let py = y_idx as u32;
-                        for px in 0..width {
-                            let (x, y) = Self::pixel_to_coord(px, py, width, height, config);
-                            let val = fractal.compute(x, y, config);
-                            row[px as usize] = match val {
-                                Some(t) => palette.sample(t),
-                                None => Rgba::BLACK,
-                            };
-                        }
-                    });
+                if use_dd {
+                    let offset_x_dd = config.offset_x_dd();
+                    let offset_y_dd = config.offset_y_dd();
+                    let scale = 4.0 / config.zoom;
+                    let h = height as f64;
+                    let w_half = width as f64 * 0.5;
+                    let h_half = height as f64 * 0.5;
+
+                    pixels
+                        .par_chunks_mut(width as usize)
+                        .enumerate()
+                        .for_each(|(y_idx, row)| {
+                            let py = y_idx as u32;
+                            let centered_y = (h_half - (py as f64 + 0.5)) / h;
+                            let dy = centered_y * scale * config.y_scale;
+                            let y_dd = offset_y_dd.add_f64(dy);
+
+                            for px in 0..width {
+                                let centered_x = (px as f64 + 0.5 - w_half) / h;
+                                let dx = centered_x * scale * config.x_scale;
+                                let x_dd = offset_x_dd.add_f64(dx);
+
+                                let val = fractal.compute_dd(x_dd, y_dd, config);
+                                row[px as usize] = match val {
+                                    Some(t) => palette.sample(t),
+                                    None => Rgba::BLACK,
+                                };
+                            }
+                        });
+                } else {
+                    pixels
+                        .par_chunks_mut(width as usize)
+                        .enumerate()
+                        .for_each(|(y_idx, row)| {
+                            let py = y_idx as u32;
+                            for px in 0..width {
+                                let (x, y) = Self::pixel_to_coord(px, py, width, height, config);
+                                let val = fractal.compute(x, y, config);
+                                row[px as usize] = match val {
+                                    Some(t) => palette.sample(t),
+                                    None => Rgba::BLACK,
+                                };
+                            }
+                        });
+                }
 
                 RenderBuffer {
                     width,

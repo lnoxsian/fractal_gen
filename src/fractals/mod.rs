@@ -2,6 +2,7 @@ pub mod families;
 
 use crate::core::bounds::InterestingBounds;
 use crate::core::config::FractalConfig;
+use crate::core::double_double::DoubleDouble;
 use std::sync::Arc;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -25,6 +26,11 @@ pub trait Fractal: Send + Sync {
     /// Evaluates coordinate (x, y). Returns Some(t) where t in [0.0, 1.0], or None if inside set (black).
     fn compute(&self, _x: f64, _y: f64, _config: &FractalConfig) -> Option<f64> {
         None
+    }
+
+    /// High-precision 106-bit evaluation for deep zooming beyond 10^13x
+    fn compute_dd(&self, x: DoubleDouble, y: DoubleDouble, config: &FractalConfig) -> Option<f64> {
+        self.compute(x.to_f64(), y.to_f64(), config)
     }
 
     /// For accumulation/density fractals (e.g. Buddhabrot, Lorenz)

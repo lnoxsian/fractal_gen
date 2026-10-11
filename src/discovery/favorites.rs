@@ -132,6 +132,8 @@ impl FavoritesManager {
                     zoom: rng.gen_range(0.1..100.0),
                     offset_x: rng.gen_range(-2.0..2.0),
                     offset_y: rng.gen_range(-2.0..2.0),
+                    offset_x_str: None,
+                    offset_y_str: None,
                     iterations: rng.gen_range(10..400),
                     color_scheme: ColorScheme::ALL[rng.gen_range(0..48)],
                     x_scale: 1.0,

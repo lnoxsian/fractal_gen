@@ -198,11 +198,17 @@ fn parse_config_from_query(query: &str) -> FractalConfig {
     if let Some(z) = parse_query_param(query, "zoom") {
         config.zoom = z;
     }
-    if let Some(ox) = parse_query_param(query, "offset_x") {
-        config.offset_x = ox;
+    if let Some(ox) = parse_query_str(query, "offset_x") {
+        config.offset_x_str = Some(ox.to_string());
+        if let Ok(v) = ox.parse::<f64>() {
+            config.offset_x = v;
+        }
     }
-    if let Some(oy) = parse_query_param(query, "offset_y") {
-        config.offset_y = oy;
+    if let Some(oy) = parse_query_str(query, "offset_y") {
+        config.offset_y_str = Some(oy.to_string());
+        if let Ok(v) = oy.parse::<f64>() {
+            config.offset_y = v;
+        }
     }
     if let Some(it) = parse_query_param(query, "iterations") {
         config.iterations = it as u32;

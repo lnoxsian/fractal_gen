@@ -47,6 +47,8 @@ fn handle_render(args: RenderArgs) -> Result<(), Box<dyn std::error::Error>> {
         zoom: args.zoom.unwrap_or(bounds.default_zoom),
         offset_x: args.offset_x.unwrap_or(bounds.default_offset_x),
         offset_y: args.offset_y.unwrap_or(bounds.default_offset_y),
+        offset_x_str: None,
+        offset_y_str: None,
         iterations: args.iterations,
         color_scheme,
         x_scale: 1.0,

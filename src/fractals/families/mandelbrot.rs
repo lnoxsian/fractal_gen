@@ -1,6 +1,7 @@
 use crate::core::bounds::InterestingBounds;
 use crate::core::complex::Complex64;
 use crate::core::config::FractalConfig;
+use crate::core::double_double::{ComplexDD, DoubleDouble};
 use crate::fractals::{Fractal, FractalRenderMode};
 use rand::rngs::SmallRng;
 use rand::{Rng, SeedableRng};
@@ -25,15 +26,20 @@ impl Fractal for Mandelbrot {
 
     fn compute(&self, x: f64, y: f64, config: &FractalConfig) -> Option<f64> {
         let c = Complex64::new(x, y);
-        // Cardioid and period-2 bulb fast checks
-        let q = (x - 0.25).powi(2) + y.powi(2);
-        if q * (q + (x - 0.25)) < 0.25 * y.powi(2) || (x + 1.0).powi(2) + y.powi(2) < 0.0625 {
-            return None;
+        // Cardioid and period-2 bulb fast checks (only at moderate zoom)
+        if config.zoom < 100.0 {
+            let q = (x - 0.25).powi(2) + y.powi(2);
+            if q * (q + (x - 0.25)) < 0.25 * y.powi(2) || (x + 1.0).powi(2) + y.powi(2) < 0.0625 {
+                return None;
+            }
         }
 
         let mut z = Complex64::zero();
         let max_iter = config.iterations;
         let escape_sqr = config.escape_radius * config.escape_radius;
+
+        let mut check_period = 20;
+        let mut old_z = z;
 
         for i in 0..max_iter {
             z = z.sqr() + c;
@@ -44,6 +50,49 @@ impl Fractal for Mandelbrot {
                 } else {
                     (i as f64 / max_iter as f64).clamp(0.0, 1.0)
                 });
+            }
+
+            // Periodicity checking: terminates interior points in ~20-40 iterations
+            if (z.re - old_z.re).abs() < 1e-14 && (z.im - old_z.im).abs() < 1e-14 {
+                return None;
+            }
+
+            if i == check_period {
+                old_z = z;
+                check_period += 25;
+            }
+        }
+        None
+    }
+
+    fn compute_dd(&self, x: DoubleDouble, y: DoubleDouble, config: &FractalConfig) -> Option<f64> {
+        let c = ComplexDD::new(x, y);
+        let mut z = ComplexDD::ZERO;
+        let max_iter = config.iterations;
+        let escape_sqr = config.escape_radius * config.escape_radius;
+
+        let mut check_period = 20;
+        let mut old_z = z;
+
+        for i in 0..max_iter {
+            z = z.sqr().add(c);
+            let n_sqr = z.norm_sqr_f64();
+            if n_sqr > escape_sqr {
+                return Some(if config.smooth_coloring {
+                    smooth_escape_time(i, n_sqr, max_iter)
+                } else {
+                    (i as f64 / max_iter as f64).clamp(0.0, 1.0)
+                });
+            }
+
+            // Periodicity checking for deep interior points
+            if (z.re.hi - old_z.re.hi).abs() < 1e-14 && (z.im.hi - old_z.im.hi).abs() < 1e-14 {
+                return None;
+            }
+
+            if i == check_period {
+                old_z = z;
+                check_period += 25;
             }
         }
         None

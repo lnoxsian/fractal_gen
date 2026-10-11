@@ -151,6 +151,8 @@ pub fn discover_surprise_me(
             zoom,
             offset_x,
             offset_y,
+            offset_x_str: None,
+            offset_y_str: None,
             iterations: 125, // default candidate iterations per Plan.md Step 3
             color_scheme,
             x_scale: 1.0,
