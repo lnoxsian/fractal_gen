@@ -217,18 +217,21 @@ impl Fractal for HybridJulia {
     fn id(&self) -> &'static str { "hybrid-julia" }
     fn name(&self) -> &'static str { "Hybrid Julia" }
     fn family(&self) -> &'static str { "julia-family" }
-    fn formula(&self) -> &'static str { "z_{n+1} = z_n^2 + c + 0.15*z_n^3" }
-    fn description(&self) -> &'static str { "Hybrid polynomial combination creating novel organic Julia morphologies." }
+    fn formula(&self) -> &'static str { "z_{n+1} = α*(z_n^2 + c) + (1-α)*(conj(z_n)^2 + c)" }
+    fn description(&self) -> &'static str { "Linear composition of classic Julia and conjugate Tricorn transformations." }
     fn bounds(&self) -> InterestingBounds { InterestingBounds::julia() }
 
     fn compute(&self, x: f64, y: f64, config: &FractalConfig) -> Option<f64> {
         let mut z = Complex64::new(x, y);
         let c = Complex64::new(config.julia_cx, config.julia_cy);
+        let alpha = 0.6;
         let max_iter = config.iterations;
         let escape_sqr = config.escape_radius * config.escape_radius;
 
         for i in 0..max_iter {
-            z = z.sqr() + c + (z.powi(3) * 0.15);
+            let julia = z.sqr() + c;
+            let tricorn = z.conj().sqr() + c;
+            z = (julia * alpha) + (tricorn * (1.0 - alpha));
             let n_sqr = z.norm_sqr();
             if n_sqr > escape_sqr {
                 return Some(smooth_escape_time(i, n_sqr, max_iter));
@@ -244,28 +247,26 @@ impl Fractal for PickoverStalks {
     fn id(&self) -> &'static str { "pickover-stalks" }
     fn name(&self) -> &'static str { "Pickover Stalks" }
     fn family(&self) -> &'static str { "julia-family" }
-    fn formula(&self) -> &'static str { "Orbit-trap distance to axes under Julia iteration" }
-    fn description(&self) -> &'static str { "Visualizes orbit proximity to real and imaginary coordinate axes." }
+    fn formula(&self) -> &'static str { "I(z) = \\sum [e^{-k|Re(z_n)|} + e^{-k|Im(z_n)|}], z_{n+1} = z_n^2 + c" }
+    fn description(&self) -> &'static str { "Exponential axis proximity orbit-trap under Julia iteration." }
     fn bounds(&self) -> InterestingBounds { InterestingBounds::julia() }
 
     fn compute(&self, x: f64, y: f64, config: &FractalConfig) -> Option<f64> {
         let mut z = Complex64::new(x, y);
         let c = Complex64::new(config.julia_cx, config.julia_cy);
         let max_iter = config.iterations;
-        let mut min_dist = 1e10f64;
+        let k = 15.0;
+        let mut sum_intensity = 0.0;
 
         for _ in 0..max_iter {
             z = z.sqr() + c;
-            let dist_axes = z.re.abs().min(z.im.abs());
-            if dist_axes < min_dist {
-                min_dist = dist_axes;
-            }
+            sum_intensity += (-k * z.re.abs()).exp() + (-k * z.im.abs()).exp();
             if z.norm_sqr() > 100.0 {
                 break;
             }
         }
-        let t = (1.0 - min_dist.min(1.0)).powf(0.5);
-        Some(t.clamp(0.0, 1.0))
+        let t = (sum_intensity / 5.0).clamp(0.0, 1.0);
+        Some(t)
     }
 }
 
@@ -275,22 +276,29 @@ impl Fractal for Biomorphs {
     fn id(&self) -> &'static str { "biomorphs" }
     fn name(&self) -> &'static str { "Biomorphs" }
     fn family(&self) -> &'static str { "julia-family" }
-    fn formula(&self) -> &'static str { "z_{n+1} = z_n^3 + c with |Re(z)| > R or |Im(z)| > R termination" }
-    fn description(&self) -> &'static str { "Clifford Pickover biomorphs producing cellular and organism-like structures." }
+    fn formula(&self) -> &'static str { "z_{n+1} = z_n^p + c, I(z) = \\min_n(|Re(z_n)|, |Im(z_n)|)" }
+    fn description(&self) -> &'static str { "Clifford Pickover biomorphs with axis-proximity biological coloring." }
     fn bounds(&self) -> InterestingBounds { InterestingBounds::julia() }
 
     fn compute(&self, x: f64, y: f64, config: &FractalConfig) -> Option<f64> {
         let mut z = Complex64::new(x, y);
         let c = Complex64::new(config.julia_cx, config.julia_cy);
+        let p = if config.power != 2.0 { config.power } else { 3.0 };
         let max_iter = config.iterations;
         let threshold = 10.0;
+        let mut min_axis = 1e10f64;
 
         for i in 0..max_iter {
-            z = z.powi(3) + c;
-            if z.re.abs() > threshold || z.im.abs() > threshold {
+            z = z.powf(p) + c;
+            let axis = z.re.abs().min(z.im.abs());
+            if axis < min_axis {
+                min_axis = axis;
+            }
+            if z.re.abs() > threshold || z.im.abs() > threshold || z.norm_sqr() > 100.0 {
                 return Some((i as f64 / max_iter as f64).clamp(0.0, 1.0));
             }
         }
-        None
+        let t = (1.0 - min_axis.min(1.0)).clamp(0.0, 1.0);
+        Some(t)
     }
 }

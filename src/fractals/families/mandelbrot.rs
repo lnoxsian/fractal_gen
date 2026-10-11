@@ -116,7 +116,7 @@ impl Fractal for CelticMandelbrot {
         let escape_sqr = config.escape_radius * config.escape_radius;
 
         for i in 0..max_iter {
-            let re = (z.re.powi(2) - z.im.powi(2)).abs() + c.re;
+            let re = (z.re * z.re - z.im * z.im).abs() + c.re;
             let im = 2.0 * z.re * z.im + c.im;
             z = Complex64::new(re, im);
             let n_sqr = z.norm_sqr();
@@ -213,7 +213,7 @@ impl Fractal for PhoenixMandelbrot {
     fn compute(&self, x: f64, y: f64, config: &FractalConfig) -> Option<f64> {
         let c = Complex64::new(x, y);
         let mut z_prev = Complex64::zero();
-        let mut z_curr = Complex64::new(y, x); // classic Phoenix coordinate swap
+        let mut z_curr = Complex64::zero();
         let p = Complex64::new(-0.5, 0.0);
         let max_iter = config.iterations;
         let escape_sqr = config.escape_radius * config.escape_radius;

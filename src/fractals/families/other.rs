@@ -31,9 +31,9 @@ impl Fractal for Buffalo {
         let escape_sqr = config.escape_radius * config.escape_radius;
 
         for i in 0..max_iter {
-            let re = (z.re.abs() - z.im.abs()).powi(2) - 2.0 * z.re.abs() * z.im.abs() + c.re;
-            let im = -2.0 * (z.re.abs() - z.im.abs()) * z.re.abs() * z.im.abs() + c.im;
-            z = Complex64::new(re, im);
+            let re = z.re.abs();
+            let im = z.im.abs();
+            z = Complex64::new(re * re - im * im + c.re, -2.0 * re * im + c.im);
             let n_sqr = z.norm_sqr();
             if n_sqr > escape_sqr {
                 return Some(smooth_escape_time(i, n_sqr, max_iter));
@@ -93,7 +93,9 @@ impl Fractal for SpiderSet {
         let escape_sqr = config.escape_radius * config.escape_radius;
 
         for i in 0..max_iter {
-            if z.norm_sqr() < 1e-10 { break; }
+            if z.norm_sqr() < 1e-12 {
+                z += Complex64::new(1e-6, 0.0);
+            }
             z = z.sqr() + c + (p * z.inv());
             let n_sqr = z.norm_sqr();
             if n_sqr > escape_sqr {
@@ -131,7 +133,9 @@ impl Fractal for Magnet {
             let z2 = z.sqr();
             let num = (z2 + c - Complex64::new(1.0, 0.0)).sqr();
             let den = (z * 4.0) * (z2 + c - Complex64::new(2.0, 0.0));
-            if den.norm_sqr() < 1e-12 { break; }
+            if den.norm_sqr() < 1e-14 {
+                return Some(smooth_escape_time(i, 100.0, max_iter));
+            }
             z = num / den;
             let n_sqr = z.norm_sqr();
             if n_sqr > 100.0 {
